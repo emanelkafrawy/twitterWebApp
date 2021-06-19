@@ -10,3 +10,20 @@ socket.on("connected", () =>{
     connected = true;
     // console.log(connected);
 });
+
+//theck if the other user recieve the message when he was in the home page or any page or exist in the chat page
+
+socket.on("message received",  (newMessage) => messageReceived(newMessage)); //common.js
+
+socket.on("notification received",  () => {
+    $.get("/api/notifications/latest", (notificationData)=>{
+        showNotificationPopup(notificationData)
+        refreshNotificationsBade()
+    })
+}); 
+
+function emitNotification(userId){
+    if(userId == userLoggedIn._id) return ;
+
+    socket.emit("notification received", userId);
+}

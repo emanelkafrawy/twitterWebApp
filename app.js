@@ -31,12 +31,14 @@ const profileRoutes = require('./routes/profileRoutes');
 const uploadRoute = require('./routes/uploadRoutes');
 const searchRoute = require('./routes/searchRoutes');
 const messagesRoute = require('./routes/messagesRoutes');
+const notificationsRoute = require('./routes/notificationRoutes');
 
 // Api routes
 const postsApiRoute = require('./routes/api/posts');
 const userRoutes = require('./routes/api/users');
 const chatRoute = require('./routes/api/chat');
 const messageRoute = require('./routes/api/messages');
+const notificationApiRoutes = require('./routes/api/notifications');
 
 app.use("/login", loginRoute);
 app.use("/register", registerRoute);
@@ -45,12 +47,15 @@ app.use("/profile",middleware.requireLogin, profileRoutes);
 app.use("/uploads", uploadRoute);
 app.use("/search",middleware.requireLogin, searchRoute);
 app.use("/messages",middleware.requireLogin, messagesRoute);
+app.use("/notifications",middleware.requireLogin, notificationsRoute);
 app.use("/logout", logoutRoutes);
 
 app.use("/api/posts", postsApiRoute);
 app.use("/api/users", userRoutes);
 app.use("/api/chats", chatRoute);
 app.use("/api/messages", messageRoute);
+app.use("/api/messages", messageRoute);
+app.use("/api/notifications", notificationApiRoutes);
 
 app.get("/", middleware.requireLogin, (req, res, next) => {
 
@@ -77,7 +82,19 @@ io.on("connection", (socket)=>{
     })
 
     socket.on("join room", room => socket.join(room))
-    socket.on("typing", room =>{
-        socket.in(room).emit("typing")
+    socket.on("typing", room => socket.in(room).emit("typing") )
+    socket.on("stop typing", room => socket.in(room).emit("stop typing"))
+    socket.on("notification received", room => socket.in(room).emit("notification received"))
+
+    socket.on("new message", newMessage => {
+        var chat = newMessage.chat; //the id of the chat
+
+        if(!chat.users) return console.log("chat.users not defined");
+        chat.users.forEach(user =>{
+            if(user._id == newMessage.sender._id){
+                return ; //send message to himself
+            }
+            socket.in(user._id).emit("message received", newMessage); //the new message that sent
+        })
     })
 })

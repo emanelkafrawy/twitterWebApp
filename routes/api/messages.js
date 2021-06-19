@@ -2,7 +2,10 @@ const express = require('express');
 const mongoose = require("mongoose");
 
 const Message= require("../../schemas/MessageSchema")
-const Chat = require("../../schemas/ChatSchema")
+const Chat = require("../../schemas/ChatSchema");
+const User = require('../../schemas/UserSchema');
+const Notification = require('../../schemas/NotificationSchema');
+
 const router = express.Router();
 
 router.post('/',(req, res, next)=>{
@@ -21,11 +24,14 @@ router.post('/',(req, res, next)=>{
         message = await message.populate("sender").execPopulate();
         message = await message.populate("chat").execPopulate();
 
-        Chat.findByIdAndUpdate(req.body.chatId, {lastMessage: message})
+        message = await User.populate(message, {path: "chat.users"}); //do that for the socket
+        var chat = await Chat.findByIdAndUpdate(req.body.chatId, {lastMessage: message})
         .catch(err =>{
             console.log(err);
         })
 
+        insertNotification(chat,message);
+    
         res.status(201).send(message)
     })
      .catch(err =>{
@@ -33,4 +39,12 @@ router.post('/',(req, res, next)=>{
          res.sendStatus(400)
      })
 })
+
+function insertNotification(chat, message){
+
+    chat.users.forEach(userId => {
+        if(userId == message.sender._id.toString()) return ;
+        Notification.insertNotification(userId, message.sender._id, "newMessage", message.chat._id)
+    });
+}
 module.exports = router;
